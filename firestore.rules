@@ -1,0 +1,119 @@
+rules_version = '2';
+
+// Firebase Authentication is handled by a separate service
+// These rules only apply to Firestore database
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Development mode - allow read access to all collections for authenticated users
+    match /{document=**} {
+      allow read: if request.auth != null;
+    }
+    
+    // Special rule to allow reading students collection for registration lookup by studentId
+    match /students/{document} {
+      allow read: if true; // Allow public reading of students collection for verification
+    }
+    
+    // Helper functions for role-based permissions
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function hasRole(role) {
+      let userData = getUserData();
+      return request.auth != null && 
+        (userData != null && userData.role == role);
+    }
+    
+    function isAdmin() {
+      let userData = getUserData();
+      return request.auth != null && 
+        (userData != null && userData.role == 'admin');
+    }
+    
+    function isTeacher() {
+      let userData = getUserData();
+      return request.auth != null && 
+        (userData != null && userData.role == 'teacher');
+    }
+
+    function isNurse() {
+      let userData = getUserData();
+      return request.auth != null && 
+        (userData != null && userData.role == 'nurse');
+    }
+    
+    function isStudent() {
+      let userData = getUserData();
+      return request.auth != null && 
+        (userData != null && userData.role == 'student');
+    }
+    
+    function isAdminOrTeacher() {
+      return isAdmin() || isTeacher();
+    }
+
+    function isStaff() {
+      return isAdmin() || isTeacher() || isNurse();
+    }
+
+    function isAccessingOwnData() {
+      let userData = getUserData();
+      return request.auth != null && 
+        (userData != null && userData.studentId == request.resource.data.studentId);
+    }
+
+    function isOwnStudentDocument() {
+      return request.auth != null && 
+        request.auth.uid == request.resource.id;
+    }
+    
+    // Allow public read access to students collection for registration lookup
+    match /students/{document} {
+      allow read: if true;
+      allow create: if isStudent() && isOwnStudentDocument();
+      allow update: if isStudent() && isOwnStudentDocument() || isAdminOrTeacher();
+      allow delete: if isAdminOrTeacher();
+    }
+    
+    // Allow students to read their own health records
+    match /healthRecords/{recordId} {
+      allow read: if isStaff() || (isStudent() && isAccessingOwnData());
+      allow write: if isStaff();
+    }
+    
+    // Allow students to read their own nutrition logs
+    match /nutritionLogs/{logId} {
+      allow read: if isStaff() || (isStudent() && isAccessingOwnData());
+      allow write: if isStaff() || (isStudent() && isAccessingOwnData());
+    }
+    
+    // Allow students to read their own exercise logs
+    match /exerciseLogs/{logId} {
+      allow read: if isStaff() || (isStudent() && isAccessingOwnData());
+      allow write: if isStaff() || (isStudent() && isAccessingOwnData());
+    }
+    
+    match /metrics/{metricId} {
+      allow write: if isAdminOrTeacher() || 
+                    (request.auth != null && request.resource.data.recordedBy == request.auth.uid);
+    }
+    
+    match /users/{userId} {
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    }
+    
+    match /user_profiles/{userId} {
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    }
+    
+    match /sections/{sectionId} {
+      allow write: if isAdminOrTeacher();
+    }
+    
+    match /password_resets/{resetId} {
+      allow write: if isAdmin();
+    }
+  }
+} 

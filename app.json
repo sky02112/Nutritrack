@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Nutritrack",
+    "slug": "Nutritrack",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": null,
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": null,
+      "resizeMode": "contain",
+      "backgroundColor": "#1565C0"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nutritrack.app",
+      "icon": null
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": null,
+        "backgroundColor": "#1565C0"
+      },
+      "package": "com.nutritrack.app",
+      "icon": null
+    },
+    "web": {
+      "favicon": null
+    }
+  }
+}
