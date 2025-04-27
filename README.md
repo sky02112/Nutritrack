@@ -55,10 +55,3 @@ Nutritrack/
 │   └── App.js          # Main app component
 ```
 
-## License
-
-© 2025 NutriTrack - All rights reserved.
-
-## Contributors
-
-- St. Michael Academy of Valenzuela
