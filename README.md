@@ -39,6 +39,14 @@ NutriTrack is a comprehensive mobile application designed to track, analyze, and
    npm start
    ```
 5. Use Expo Go app on your mobile device to scan the QR code
+   
+Supported Versions
+
+| Software     | Supported Versions |
+| ------------ | ------------------ |
+| Expo go        | 52.0.x    :white_check_mark:          |
+| Firebase     | 11.6.x  :white_check_mark:           |
+| React Native | 0.76.9   :white_check_mark:          |
 
 ## Project Structure
 
