@@ -25,5 +25,6 @@ Since NutriTrack handles sensitive health information of grade 3 students, we ar
 - Access to student records is strictly limited to authorized personnel
 - Regular security audits are conducted
 - All data handling complies with relevant educational privacy regulations
+- All commits to this repository are verified using GPG signatures
 
 Thank you for helping keep NutriTrack and its users safe!
