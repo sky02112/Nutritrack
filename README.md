@@ -40,7 +40,7 @@ NutriTrack is a comprehensive mobile application designed to track, analyze, and
    ```
 5. Use Expo Go app on your mobile device to scan the QR code
 
-Supported Versions
+## Supported Versions
 
 | Software     | Supported Versions        |
 | ------------ | ------------------------- |
