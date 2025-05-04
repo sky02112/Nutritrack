@@ -2,7 +2,7 @@
 
 All notable changes to the NutriTrack project will be documented in this file.
 
-## [1.0.1] - 2024-10-XX
+## [1.0.1] - 2025-05-04
 
 ### Added
 
@@ -21,7 +21,7 @@ All notable changes to the NutriTrack project will be documented in this file.
 
 - Removed outdated Android icon assets
 
-## [1.0.0] - 2024-10-XX
+## [1.0.0] - 2025-04-27
 
 ### Added
 
