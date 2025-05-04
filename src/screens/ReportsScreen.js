@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -6,7 +6,13 @@ import {
   ScrollView, 
   TouchableOpacity,
   ActivityIndicator,
-  Alert
+  Alert,
+  Animated,
+  Modal,
+  SafeAreaView,
+  StatusBar as RNStatusBar,
+  Dimensions,
+  Platform
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { generateStudentReport, generateClassReport } from '../services/reportService';
@@ -16,6 +22,10 @@ import { useSyncContext } from '../store/SyncContext';
 import withSafeArea from '../components/withSafeArea';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const { width, height } = Dimensions.get('window');
 
 const ReportsScreen = () => {
   const { lastSyncTime, isSyncing } = useSyncContext(); // Access sync context
@@ -26,6 +36,11 @@ const ReportsScreen = () => {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState(null);
   const [firestoreConnected, setFirestoreConnected] = useState(true);
+  const [showReportModal, setShowReportModal] = useState(false);
+  
+  // Animation value for report container
+  const reportAnimation = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef(null);
   
   // Check Firestore connection on component mount
   useEffect(() => {
@@ -214,6 +229,7 @@ const ReportsScreen = () => {
           }
         } else if (report) {
           setReport(report);
+          setShowReportModal(true);
         } else {
           Alert.alert('Report Error', 'No data available to generate report');
         }
@@ -233,6 +249,7 @@ const ReportsScreen = () => {
           );
         } else if (report) {
           setReport(report);
+          setShowReportModal(true);
         } else {
           Alert.alert('Report Error', 'No data available to generate report');
         }
@@ -245,6 +262,11 @@ const ReportsScreen = () => {
     }
   };
   
+  // Close the report modal
+  const closeReportModal = () => {
+    setShowReportModal(false);
+  };
+  
   // Format date for display
   const formatDate = (date) => {
     if (!date) return '';
@@ -252,6 +274,357 @@ const ReportsScreen = () => {
     
     const d = new Date(date);
     return `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
+  };
+  
+  // Render BMI status indicator
+  const renderBmiStatus = (bmi) => {
+    let statusColor = '#4CAF50'; // Default green
+    let statusText = 'Normal';
+    
+    if (bmi < 18.5) {
+      statusColor = '#FF9800'; // Orange
+      statusText = 'Underweight';
+    } else if (bmi >= 25) {
+      statusColor = '#F44336'; // Red
+      statusText = 'Overweight';
+    }
+    
+    return (
+      <View style={styles.bmiStatusContainer}>
+        <View style={[styles.bmiStatusIndicator, { backgroundColor: statusColor }]} />
+        <Text style={[styles.bmiStatusText, { color: statusColor }]}>{statusText}</Text>
+      </View>
+    );
+  };
+  
+  // Health recommendations based on BMI status
+  const getHealthRecommendations = (bmi) => {
+    if (bmi < 18.5) {
+      return {
+        title: 'Underweight Recommendations',
+        suggestions: [
+          'Increase calorie intake with nutrient-dense foods like nuts, avocados, and whole grains',
+          'Eat frequent, smaller meals throughout the day',
+          'Include protein-rich foods with each meal (eggs, lean meats, legumes)',
+          'Consider strength training to build healthy muscle mass',
+          'Consult a nutritionist for personalized guidance'
+        ]
+      };
+    } else if (bmi >= 25) {
+      return {
+        title: 'Overweight Recommendations',
+        suggestions: [
+          'Focus on whole, unprocessed foods (vegetables, fruits, lean proteins)',
+          'Reduce portion sizes and limit sugary drinks',
+          'Aim for 150+ minutes of moderate exercise weekly',
+          'Practice mindful eating and reduce snacking',
+          'Stay hydrated and get adequate sleep'
+        ]
+      };
+    } else {
+      return {
+        title: 'Healthy Weight Maintenance',
+        suggestions: [
+          'Maintain balanced diet with variety of food groups',
+          'Continue regular physical activity (30+ minutes most days)',
+          'Monitor portion sizes to prevent gradual weight gain',
+          'Stay hydrated with water instead of sugary drinks',
+          'Get regular health check-ups'
+        ]
+      };
+    }
+  };
+
+  // Render health recommendations
+  const renderHealthRecommendations = (bmi) => {
+    const { title, suggestions } = getHealthRecommendations(bmi);
+    
+    return (
+      <View style={styles.reportCard}>
+        <View style={styles.cardHeader}>
+          <Ionicons name="heart" size={24} color="#1565C0" />
+          <Text style={styles.cardTitle}>{title}</Text>
+        </View>
+        
+        <View style={styles.recommendationsContainer}>
+          {suggestions.map((item, index) => (
+            <View key={index} style={styles.recommendationItem}>
+              <Ionicons name="checkmark-circle" size={16} color="#4CAF50" style={styles.recommendationIcon} />
+              <Text style={styles.recommendationText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  };
+  
+  // Render report content
+  const renderReportContent = () => {
+    if (!report) return null;
+    
+    return (
+      <>
+        {reportType === 'class' ? (
+          // Class Report Content
+          <View style={styles.reportContent}>
+            <View style={styles.reportCard}>
+              <View style={styles.cardHeader}>
+                <Ionicons name="people" size={24} color="#1565C0" />
+                <Text style={styles.cardTitle}>Class Overview</Text>
+              </View>
+              
+              <View style={styles.reportSummary}>
+                <Text style={styles.reportLabel}>Total Students:</Text>
+                <Text style={styles.reportValue}>{report.studentCount}</Text>
+              </View>
+            </View>
+            
+            {report.classAverages && (
+              <View style={styles.reportCard}>
+                <View style={styles.cardHeader}>
+                  <Ionicons name="stats-chart" size={24} color="#1565C0" />
+                  <Text style={styles.cardTitle}>Class Averages</Text>
+                </View>
+                
+                <View style={styles.reportSummary}>
+                  <Text style={styles.reportLabel}>Average Height:</Text>
+                  <Text style={styles.reportValue}>
+                    {report.classAverages.averageHeight} <Text style={styles.unit}>cm</Text>
+                  </Text>
+                </View>
+                
+                <View style={styles.reportSummary}>
+                  <Text style={styles.reportLabel}>Average Weight:</Text>
+                  <Text style={styles.reportValue}>
+                    {report.classAverages.averageWeight} <Text style={styles.unit}>kg</Text>
+                  </Text>
+                </View>
+                
+                <View style={styles.reportSummary}>
+                  <Text style={styles.reportLabel}>Average BMI:</Text>
+                  <View style={styles.valueWithStatus}>
+                    <Text style={styles.reportValue}>
+                      {report.classAverages.averageBmi}
+                    </Text>
+                    {renderBmiStatus(report.classAverages.averageBmi)}
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+        ) : (
+          // Individual Report Content
+          <View style={styles.reportContent}>
+            {report.student && (
+              <View style={styles.reportCard}>
+                <View style={styles.cardHeader}>
+                  <Ionicons name="person" size={24} color="#1565C0" />
+                  <Text style={styles.cardTitle}>Student Information</Text>
+                </View>
+                
+                <View style={styles.studentInfo}>
+                  <Text style={styles.studentName}>
+                    {report.student.firstName} {report.student.lastName}
+                  </Text>
+                  <View style={styles.studentDetailRow}>
+                    <View style={styles.detailItem}>
+                      <Ionicons name="school-outline" size={16} color="#666" style={styles.detailIcon} />
+                      <Text style={styles.studentDetails}>
+                        Grade {report.student.grade}
+                      </Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Ionicons name="key-outline" size={16} color="#666" style={styles.detailIcon} />
+                      <Text style={styles.studentDetails}>
+                        ID: {report.student.studentId}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.studentDetailRow}>
+                    <View style={styles.detailItem}>
+                      <Ionicons name={report.student.gender === 'male' ? "male-outline" : "female-outline"} 
+                        size={16} color="#666" style={styles.detailIcon} />
+                      <Text style={styles.studentDetails}>
+                        {report.student.gender ? (report.student.gender.charAt(0).toUpperCase() + report.student.gender.slice(1)) : 'Unknown'}
+                      </Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Ionicons name="calendar-outline" size={16} color="#666" style={styles.detailIcon} />
+                      <Text style={styles.studentDetails}>
+                        Age: {report.student.age || 'Unknown'} years
+                      </Text>
+                    </View>
+                  </View>
+
+                  {report.student.section && (
+                    <View style={styles.studentDetailRow}>
+                      <View style={styles.detailItem}>
+                        <Ionicons name="people-outline" size={16} color="#666" style={styles.detailIcon} />
+                        <Text style={styles.studentDetails}>
+                          Section: {report.student.section}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
+            
+            {report.records && report.records.length > 0 ? (
+              <>
+                <View style={styles.reportCard}>
+                  <View style={styles.cardHeader}>
+                    <Ionicons name="calendar" size={24} color="#1565C0" />
+                    <Text style={styles.cardTitle}>Latest Measurements</Text>
+                  </View>
+                  
+                  {report.records[report.records.length - 1] && (
+                    <View style={styles.measurementItem}>
+                      <Text style={styles.measurementDate}>
+                        {formatDate(report.records[report.records.length - 1].date)}
+                      </Text>
+                      
+                      <View style={styles.measurementDetails}>
+                        <View style={styles.measureRow}>
+                          <View style={styles.measureBox}>
+                            <Ionicons name="resize" size={20} color="#1565C0" />
+                            <Text style={styles.measureLabel}>Height</Text>
+                            <Text style={styles.measureValue}>
+                              {report.records[report.records.length - 1].height}
+                              <Text style={styles.unit}> cm</Text>
+                            </Text>
+                          </View>
+                          
+                          <View style={styles.measureBox}>
+                            <Ionicons name="fitness" size={20} color="#1565C0" />
+                            <Text style={styles.measureLabel}>Weight</Text>
+                            <Text style={styles.measureValue}>
+                              {report.records[report.records.length - 1].weight}
+                              <Text style={styles.unit}> kg</Text>
+                            </Text>
+                          </View>
+                        </View>
+                        
+                        <View style={styles.bmiContainer}>
+                          <View style={styles.bmiBox}>
+                            <View style={styles.bmiHeader}>
+                              <Ionicons name="body" size={20} color="#1565C0" />
+                              <Text style={styles.bmiTitle}>BMI</Text>
+                            </View>
+                            <Text style={styles.bmiValue}>
+                              {report.records[report.records.length - 1].bmi}
+                            </Text>
+                            {renderBmiStatus(report.records[report.records.length - 1].bmi)}
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                </View>
+                
+                <View style={styles.reportCard}>
+                  <View style={styles.cardHeader}>
+                    <Ionicons name="trending-up" size={24} color="#1565C0" />
+                    <Text style={styles.cardTitle}>Growth Trends</Text>
+                  </View>
+                  
+                  {report.trends && (
+                    <View style={styles.trendsContainer}>
+                      <View style={styles.trendItem}>
+                        <View style={styles.trendIconContainer}>
+                          <Ionicons name="resize" size={20} color="#1565C0" />
+                        </View>
+                        <View style={styles.trendContent}>
+                          <Text style={styles.trendLabel}>Height Change:</Text>
+                          <Text style={[
+                            styles.trendValue,
+                            report.trends.heightChange > 0 ? styles.positiveChange : 
+                            report.trends.heightChange < 0 ? styles.negativeChange : {}
+                          ]}>
+                            {report.trends.heightChange > 0 ? '+' : ''}
+                            {report.trends.heightChange} cm
+                            {report.trends.heightChange > 0 && (
+                              <Ionicons name="arrow-up" size={16} color="#4CAF50" style={styles.trendIcon} />
+                            )}
+                            {report.trends.heightChange < 0 && (
+                              <Ionicons name="arrow-down" size={16} color="#F44336" style={styles.trendIcon} />
+                            )}
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      <View style={styles.trendItem}>
+                        <View style={styles.trendIconContainer}>
+                          <Ionicons name="fitness" size={20} color="#1565C0" />
+                        </View>
+                        <View style={styles.trendContent}>
+                          <Text style={styles.trendLabel}>Weight Change:</Text>
+                          <Text style={[
+                            styles.trendValue,
+                            report.trends.weightChange > 0 ? styles.positiveChange : 
+                            report.trends.weightChange < 0 ? styles.negativeChange : {}
+                          ]}>
+                            {report.trends.weightChange > 0 ? '+' : ''}
+                            {report.trends.weightChange} kg
+                            {report.trends.weightChange > 0 && (
+                              <Ionicons name="arrow-up" size={16} color="#4CAF50" style={styles.trendIcon} />
+                            )}
+                            {report.trends.weightChange < 0 && (
+                              <Ionicons name="arrow-down" size={16} color="#F44336" style={styles.trendIcon} />
+                            )}
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      <View style={styles.trendItem}>
+                        <View style={styles.trendIconContainer}>
+                          <Ionicons name="body" size={20} color="#1565C0" />
+                        </View>
+                        <View style={styles.trendContent}>
+                          <Text style={styles.trendLabel}>BMI Change:</Text>
+                          <Text style={[
+                            styles.trendValue,
+                            report.trends.bmiChange > 0 ? styles.positiveChange : 
+                            report.trends.bmiChange < 0 ? styles.negativeChange : {}
+                          ]}>
+                            {report.trends.bmiChange > 0 ? '+' : ''}
+                            {report.trends.bmiChange}
+                            {report.trends.bmiChange > 0 && (
+                              <Ionicons name="arrow-up" size={16} color="#4CAF50" style={styles.trendIcon} />
+                            )}
+                            {report.trends.bmiChange < 0 && (
+                              <Ionicons name="arrow-down" size={16} color="#F44336" style={styles.trendIcon} />
+                            )}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              </>
+            ) : (
+              <View style={styles.reportCard}>
+                <View style={styles.noDataContainer}>
+                  <Ionicons name="information-circle-outline" size={48} color="#BDBDBD" />
+                  <Text style={styles.noDataText}>
+                    No health records available for this student.
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+        
+        {/* Add health recommendations at the end */}
+        {reportType === 'individual' && report.records && report.records.length > 0 && (
+          renderHealthRecommendations(report.records[report.records.length - 1].bmi)
+        )}
+        {reportType === 'class' && report.classAverages && (
+          renderHealthRecommendations(report.classAverages.averageBmi)
+        )}
+      </>
+    );
   };
   
   return (
@@ -265,7 +638,10 @@ const ReportsScreen = () => {
         </View>
       )}
       
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        ref={scrollViewRef}
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* Report Type Selection */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Report Type</Text>
@@ -375,162 +751,54 @@ const ReportsScreen = () => {
             </Text>
           </TouchableOpacity>
         </View>
-        
-        {/* Report Display */}
-        {report && (
-          <View style={styles.reportContainer}>
-            <View style={styles.reportHeader}>
-              <Text style={styles.reportTitle}>
+      </ScrollView>
+      
+      {/* Full-screen Report Modal */}
+      <Modal
+        visible={showReportModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={closeReportModal}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <LinearGradient
+            colors={['#1976D2', '#1565C0']}
+            style={styles.modalHeader}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <RNStatusBar backgroundColor="#1976D2" barStyle="light-content" />
+            <View style={styles.headerTop}>
+              <Text style={styles.modalTitle}>
                 {reportType === 'class' ? `Grade ${selectedGrade} Report` : 'Student Report'}
               </Text>
-              <Text style={styles.reportDate}>
-                Generated: {formatDate(report.generatedAt)}
-              </Text>
+              
+         
             </View>
-            
-            {reportType === 'class' ? (
-              // Class Report Content
-              <View style={styles.reportContent}>
-                <View style={styles.reportSummary}>
-                  <Text style={styles.reportLabel}>Total Students:</Text>
-                  <Text style={styles.reportValue}>{report.studentCount}</Text>
-                </View>
-                
-                {report.classAverages && (
-                  <>
-                    <Text style={styles.reportSectionTitle}>Class Averages</Text>
-                    
-                    <View style={styles.reportSummary}>
-                      <Text style={styles.reportLabel}>Average Height:</Text>
-                      <Text style={styles.reportValue}>
-                        {report.classAverages.averageHeight} cm
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.reportSummary}>
-                      <Text style={styles.reportLabel}>Average Weight:</Text>
-                      <Text style={styles.reportValue}>
-                        {report.classAverages.averageWeight} kg
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.reportSummary}>
-                      <Text style={styles.reportLabel}>Average BMI:</Text>
-                      <Text style={styles.reportValue}>
-                        {report.classAverages.averageBmi}
-                      </Text>
-                    </View>
-                  </>
-                )}
-              </View>
-            ) : (
-              // Individual Report Content
-              <View style={styles.reportContent}>
-                {report.student && (
-                  <View style={styles.studentInfo}>
-                    <Text style={styles.studentName}>
-                      {report.student.firstName} {report.student.lastName}
-                    </Text>
-                    <Text style={styles.studentDetails}>
-                      Grade {report.student.grade} | ID: {report.student.studentId}
-                    </Text>
-                  </View>
-                )}
-                
-                {report.records && report.records.length > 0 ? (
-                  <>
-                    <Text style={styles.reportSectionTitle}>Latest Measurements</Text>
-                    
-                    {report.records[report.records.length - 1] && (
-                      <View style={styles.measurementItem}>
-                        <Text style={styles.measurementDate}>
-                          {formatDate(report.records[report.records.length - 1].date)}
-                        </Text>
-                        
-                        <View style={styles.measurementDetails}>
-                          <View style={styles.reportSummary}>
-                            <Text style={styles.reportLabel}>Height:</Text>
-                            <Text style={styles.reportValue}>
-                              {report.records[report.records.length - 1].height} cm
-                            </Text>
-                          </View>
-                          
-                          <View style={styles.reportSummary}>
-                            <Text style={styles.reportLabel}>Weight:</Text>
-                            <Text style={styles.reportValue}>
-                              {report.records[report.records.length - 1].weight} kg
-                            </Text>
-                          </View>
-                          
-                          <View style={styles.reportSummary}>
-                            <Text style={styles.reportLabel}>BMI:</Text>
-                            <Text style={styles.reportValue}>
-                              {report.records[report.records.length - 1].bmi}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    )}
-                    
-                    <Text style={styles.reportSectionTitle}>Growth Trends</Text>
-                    
-                    {report.trends && (
-                      <View style={styles.trendsContainer}>
-                        <View style={styles.reportSummary}>
-                          <Text style={styles.reportLabel}>Height Change:</Text>
-                          <Text style={[
-                            styles.reportValue,
-                            report.trends.heightChange > 0 ? styles.positiveChange : 
-                            report.trends.heightChange < 0 ? styles.negativeChange : {}
-                          ]}>
-                            {report.trends.heightChange > 0 ? '+' : ''}
-                            {report.trends.heightChange} cm
-                          </Text>
-                        </View>
-                        
-                        <View style={styles.reportSummary}>
-                          <Text style={styles.reportLabel}>Weight Change:</Text>
-                          <Text style={[
-                            styles.reportValue,
-                            report.trends.weightChange > 0 ? styles.positiveChange : 
-                            report.trends.weightChange < 0 ? styles.negativeChange : {}
-                          ]}>
-                            {report.trends.weightChange > 0 ? '+' : ''}
-                            {report.trends.weightChange} kg
-                          </Text>
-                        </View>
-                        
-                        <View style={styles.reportSummary}>
-                          <Text style={styles.reportLabel}>BMI Change:</Text>
-                          <Text style={[
-                            styles.reportValue,
-                            report.trends.bmiChange > 0 ? styles.positiveChange : 
-                            report.trends.bmiChange < 0 ? styles.negativeChange : {}
-                          ]}>
-                            {report.trends.bmiChange > 0 ? '+' : ''}
-                            {report.trends.bmiChange}
-                          </Text>
-                        </View>
-                      </View>
-                    )}
-                  </>
-                ) : (
-                  <Text style={styles.noDataText}>
-                    No health records available for this student.
-                  </Text>
-                )}
-              </View>
-            )}
-            
+            <Text style={styles.modalSubtitle}>
+              Generated: {report ? formatDate(report.generatedAt) : ''}
+            </Text>
+          </LinearGradient>
+          
+          <ScrollView 
+            style={styles.modalContent}
+            contentContainerStyle={styles.modalContentContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            {renderReportContent()}
+          </ScrollView>
+          
+          <View style={styles.modalFooter}>
             <TouchableOpacity
               style={styles.exportButton}
               onPress={() => Alert.alert('Export', 'This feature is coming soon!')}
             >
+              <Ionicons name="download-outline" size={20} color="white" style={styles.buttonIcon} />
               <Text style={styles.exportButtonText}>Export PDF</Text>
             </TouchableOpacity>
           </View>
-        )}
-      </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 };
@@ -633,10 +901,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   reportHeader: {
     backgroundColor: '#1565C0',
@@ -679,13 +949,26 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   studentInfo: {
-    marginBottom: 20,
+    paddingBottom: 12,
   },
   studentName: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 5,
+    marginBottom: 12,
+  },
+  studentDetailRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 16,
+    flex: 1,
+  },
+  detailIcon: {
+    marginRight: 6,
   },
   studentDetails: {
     fontSize: 14,
@@ -723,14 +1006,321 @@ const styles = StyleSheet.create({
     marginVertical: 30,
   },
   exportButton: {
-    backgroundColor: '#455A64',
-    padding: 12,
+    backgroundColor: '#1976D2',
+    padding: 16,
+    borderRadius: 10,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   exportButtonText: {
     color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonIcon: {
+    marginRight: 8,
+  },
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#F5F7FA',
+  },
+  modalHeader: {
+    padding: 20,
+    position: 'relative',
+    paddingTop: Platform.OS === 'android' ? 4 : 8,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 1,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalContent: {
+    flex: 1,
+  },
+  modalContentContainer: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  modalFooter: {
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  
+  // Card styles
+  reportCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: Platform.OS === 'ios' ? 0.5 : 0,
+    borderColor: '#E0E0E0',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 10,
+  },
+  
+  // Report content styles
+  reportContent: {
+    width: '100%',
+  },
+  reportSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  reportLabel: {
+    fontSize: 15,
+    color: '#555',
+  },
+  reportValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  unit: {
+    fontSize: 12,
+    color: '#888',
+    fontWeight: 'normal',
+  },
+  valueWithStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  
+  // Student info styles
+  studentInfo: {
+    paddingBottom: 12,
+  },
+  studentName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  studentDetailRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 16,
+    flex: 1,
+  },
+  detailIcon: {
+    marginRight: 6,
+  },
+  studentDetails: {
+    fontSize: 14,
+    color: '#666',
+  },
+  
+  // Measurement styles
+  measurementItem: {
+    width: '100%',
+  },
+  measurementDate: {
     fontSize: 14,
     fontWeight: '500',
+    color: '#1565C0',
+    marginBottom: 16,
+  },
+  measurementDetails: {
+    width: '100%',
+  },
+  measureRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  measureBox: {
+    width: '48%',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 10,
+    padding: 16,
+    alignItems: 'center',
+  },
+  measureLabel: {
+    fontSize: 14,
+    color: '#757575',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  measureValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  
+  // BMI specific styles
+  bmiContainer: {
+    width: '100%',
+  },
+  bmiBox: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 10,
+    padding: 16,
+    alignItems: 'center',
+  },
+  bmiHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  bmiTitle: {
+    fontSize: 14,
+    color: '#757575',
+    marginLeft: 6,
+  },
+  bmiValue: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  bmiStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  bmiStatusIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 4,
+  },
+  bmiStatusText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  
+  // Trend styles
+  trendsContainer: {
+    width: '100%',
+  },
+  trendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  trendIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E3F2FD',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  trendContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  trendLabel: {
+    fontSize: 15,
+    color: '#555',
+  },
+  trendValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  trendIcon: {
+    marginLeft: 4,
+  },
+  positiveChange: {
+    color: '#4CAF50',
+  },
+  negativeChange: {
+    color: '#F44336',
+  },
+  
+  // No data styles
+  noDataContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  noDataText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#888',
+    marginTop: 16,
+  },
+  
+  // New styles
+  recommendationsContainer: {
+    marginTop: 8,
+  },
+  recommendationItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  recommendationIcon: {
+    marginRight: 8,
+    marginTop: 2,
+  },
+  recommendationText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#555',
+    lineHeight: 20,
   },
 });
 

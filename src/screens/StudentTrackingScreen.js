@@ -131,17 +131,8 @@ const StudentTrackingScreen = ({ route, navigation }) => {
         const height = parseFloat(updated.height);
         const weight = parseFloat(updated.weight);
         
-        // If either height or weight is missing, show appropriate message
-        if (!updated.height || !updated.weight) {
-          setBmiPreview({ 
-            bmi: null, 
-            status: `Enter ${!updated.height ? 'height' : 'weight'}`
-          });
-          return updated;
-        }
-        
-        // If we have both values, calculate BMI
-        if (!isNaN(height) && !isNaN(weight) && height > 0 && weight > 0) {
+        // Only calculate and show BMI when both values are reasonable
+        if (!isNaN(height) && !isNaN(weight) && height >= 50 && weight >= 10) {
           const bmi = calculateBMI(weight, height);
           
           // Get age from birthdate if available
@@ -156,10 +147,8 @@ const StudentTrackingScreen = ({ route, navigation }) => {
           const status = getBMIStatus(bmi, age, updated.gender);
           setBmiPreview({ bmi, status });
         } else {
-          setBmiPreview({ 
-            bmi: null, 
-            status: 'Enter valid height/weight'
-          });
+          // Hide BMI preview if values aren't reasonable
+          setBmiPreview({ bmi: null, status: null });
         }
       }
       
@@ -449,8 +438,30 @@ const StudentTrackingScreen = ({ route, navigation }) => {
       if (error) {
         console.error('Error fetching health records:', error);
       } else {
-        setHealthRecords(records || []);
-        setBmiStats(calculateBmiStats(records || []));
+        // Deduplicate records by ID
+        const uniqueRecords = [];
+        const seenIds = new Set();
+        
+        // Only add records with unique IDs
+        records.forEach(record => {
+          if (record.id && !seenIds.has(record.id)) {
+            seenIds.add(record.id);
+            uniqueRecords.push(record);
+          }
+        });
+        
+        // Sort records by date (most recent first)
+        uniqueRecords.sort((a, b) => {
+          const dateA = a.date?.toDate?.() || new Date(a.date);
+          const dateB = b.date?.toDate?.() || new Date(b.date);
+          return dateB - dateA;
+        });
+
+        // Get the latest record
+        const latestRecord = uniqueRecords[0] || null;
+        
+        setHealthRecords(uniqueRecords);
+        setBmiStats(calculateBmiStats(uniqueRecords));
       }
     } catch (error) {
       console.error('Error:', error);
@@ -968,22 +979,21 @@ const StudentTrackingScreen = ({ route, navigation }) => {
       const height = parseFloat((name === 'height' ? value : healthRecord.height) || '0');
       const weight = parseFloat((name === 'weight' ? value : healthRecord.weight) || '0');
       
-      if (!isNaN(height) && !isNaN(weight) && height > 0 && weight > 0) {
-        const heightInM = height / 100;
-        const bmi = (weight / (heightInM * heightInM));
+      // Only calculate and show BMI when both values are reasonable
+      if (!isNaN(height) && !isNaN(weight) && height >= 50 && weight >= 10) {
+        // Use the proper BMI calculation function from services
+        const bmi = calculateBMI(weight, height);
         
-        if (!isNaN(bmi) && isFinite(bmi)) {
-          let status = 'Normal';
-          const bmiValue = bmi.toFixed(1);
+        if (bmi !== null) {
+          // Get the proper BMI status using the service function
+          const status = getBMIStatus(bmi);
           
-          if (bmi < 18.5) status = 'Needs Improvement';
-          else if (bmi > 25) status = 'Average';
-          
-          setBmiPreview({ bmi: bmiValue, status });
+          setBmiPreview({ bmi, status });
         } else {
           setBmiPreview({ bmi: null, status: null });
         }
       } else {
+        // Hide the preview if values are not reasonable
         setBmiPreview({ bmi: null, status: null });
       }
     }
@@ -994,21 +1004,33 @@ const StudentTrackingScreen = ({ route, navigation }) => {
     try {
       const { records, error } = await getHealthRecords(studentId);
       if (!error && records) {
+        // Deduplicate records by ID
+        const uniqueRecords = [];
+        const seenIds = new Set();
+        
+        // Only add records with unique IDs
+        records.forEach(record => {
+          if (record.id && !seenIds.has(record.id)) {
+            seenIds.add(record.id);
+            uniqueRecords.push(record);
+          }
+        });
+        
         // Sort records by date (most recent first)
-        const sortedRecords = records.sort((a, b) => {
+        uniqueRecords.sort((a, b) => {
           const dateA = a.date?.toDate?.() || new Date(a.date);
           const dateB = b.date?.toDate?.() || new Date(b.date);
           return dateB - dateA;
         });
 
         // Get the latest record
-        const latestRecord = sortedRecords[0] || null;
+        const latestRecord = uniqueRecords[0] || null;
         
         // Cache the health data
         setStudentHealthData(prev => ({
           ...prev,
           [studentId]: {
-            records: sortedRecords,
+            records: uniqueRecords,
             latestRecord,
             lastUpdated: new Date()
           }
@@ -1016,10 +1038,10 @@ const StudentTrackingScreen = ({ route, navigation }) => {
 
         // If this is the selected student, update their records
         if (selectedStudent?.id === studentId) {
-          setHealthRecords(sortedRecords);
+          setHealthRecords(uniqueRecords);
         }
 
-        return { records: sortedRecords, latestRecord };
+        return { records: uniqueRecords, latestRecord };
       }
       return { records: [], latestRecord: null };
     } catch (error) {
@@ -1027,6 +1049,40 @@ const StudentTrackingScreen = ({ route, navigation }) => {
       return { records: [], latestRecord: null };
     }
   }, [selectedStudent]);
+  
+  // Add this to the modal open/close functions
+  const openAddHealthRecordModal = () => {
+    // Reset BMI preview when opening the modal
+    setBmiPreview({ bmi: null, status: null });
+    setModalVisible(true);
+  };
+
+  const closeAddHealthRecordModal = () => {
+    // Reset BMI preview when closing the modal
+    setBmiPreview({ bmi: null, status: null });
+    setModalVisible(false);
+  };
+  
+  // Add function to open the Add Student modal
+  const openAddStudentModal = () => {
+    // Reset student form data
+    setNewStudent({
+      firstName: '',
+      lastName: '',
+      grade: '3',
+      studentId: '',
+      gender: 'male',
+      birthDate: '',
+      age: '',
+      section: '',
+      height: '',
+      weight: ''
+    });
+    // Reset BMI preview
+    setBmiPreview({ bmi: null, status: null });
+    setCalculatedAge('');
+    setIsAddStudentModalVisible(true);
+  };
   
   if (loading && students.length === 0) {
     return (
@@ -1099,7 +1155,7 @@ const StudentTrackingScreen = ({ route, navigation }) => {
               <>
                 <TouchableOpacity
                   style={styles.actionButton}
-                  onPress={() => setModalVisible(true)}
+                  onPress={openAddHealthRecordModal}
                 >
                   <Text style={styles.actionButtonText}>Add Record</Text>
                 </TouchableOpacity>
@@ -1135,7 +1191,7 @@ const StudentTrackingScreen = ({ route, navigation }) => {
             animationType="slide"
             transparent={true}
             visible={modalVisible}
-            onRequestClose={() => setModalVisible(false)}
+            onRequestClose={closeAddHealthRecordModal}
           >
             <View style={styles.modalBackground}>
               <View style={styles.modalContainer}>
@@ -1204,7 +1260,7 @@ const StudentTrackingScreen = ({ route, navigation }) => {
                             <View style={styles.bmiPreviewContent}>
                               <Text style={styles.bmiPreviewValue}>
                                 BMI: <Text style={styles.bmiPreviewNumber}>
-                                  {typeof bmiPreview.bmi === 'number' ? bmiPreview.bmi.toFixed(1) : 'N/A'}
+                                  {bmiPreview.bmi}
                                 </Text>
                               </Text>
                               <Text style={styles.bmiPreviewStatus}>
@@ -1222,7 +1278,7 @@ const StudentTrackingScreen = ({ route, navigation }) => {
                         <View style={styles.modalButtons}>
                           <TouchableOpacity
                             style={styles.cancelButton}
-                            onPress={() => setModalVisible(false)}
+                            onPress={closeAddHealthRecordModal}
                           >
                             <Text style={styles.cancelButtonText}>Cancel</Text>
                           </TouchableOpacity>
@@ -1311,7 +1367,7 @@ const StudentTrackingScreen = ({ route, navigation }) => {
           {(isAdmin || isTeacher) && (
             <TouchableOpacity 
               style={styles.fabButton}
-              onPress={() => setIsAddStudentModalVisible(true)}
+              onPress={openAddStudentModal}
             >
               <Text style={styles.fabButtonText}>+</Text>
             </TouchableOpacity>
@@ -1446,7 +1502,7 @@ const StudentTrackingScreen = ({ route, navigation }) => {
                   <View style={styles.bmiPreviewContent}>
                     <Text style={styles.bmiPreviewValue}>
                       BMI: <Text style={styles.bmiPreviewNumber}>
-                        {typeof bmiPreview.bmi === 'number' ? bmiPreview.bmi.toFixed(1) : 'N/A'}
+                        {bmiPreview.bmi}
                       </Text>
                     </Text>
                     <Text style={styles.bmiPreviewStatus}>
