@@ -65,4 +65,4 @@ Nutritrack/
 
 ## Development Practices
 
-All commits to this repository are signed with GPG for enhanced security and verification.
+All commits to this repository are signed with GPG for enhanced security and verification. The GPG signing ensures that commits are authenticated and unmodified, providing an additional layer of trust.
