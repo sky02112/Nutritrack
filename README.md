@@ -62,3 +62,7 @@ Nutritrack/
 │   ├── utils/          # Helper functions
 │   └── App.js          # Main app component
 ```
+
+## Development Practices
+
+All commits to this repository are signed with GPG for enhanced security and verification.
