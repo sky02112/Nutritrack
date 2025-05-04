@@ -4,8 +4,8 @@
   "main": "index.js",
   "scripts": {
     "start": "expo start",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
     "web": "expo start --web"
   },
   "dependencies": {
@@ -34,12 +34,17 @@
     "react-native-screens": "~4.4.0",
     "react-native-svg": "^15.8.0",
     "sharp": "^0.34.1",
-    "yup": "^1.6.1"
+    "yup": "^1.6.1",
+    "@react-native/gradle-plugin": "0.73.4",
+    "react-dom": "18.3.1",
+    "react-native-web": "~0.19.13",
+    "@expo/metro-runtime": "~4.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@react-native-community/cli": "^18.0.0",
-    "icon-set-creator": "^1.2.6"
+    "icon-set-creator": "^1.2.6",
+    "jetifier": "^2.0.0"
   },
   "private": true
 }

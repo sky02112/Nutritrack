@@ -40,11 +40,45 @@ NutriTrack is a comprehensive mobile application designed to track, analyze, and
    ```
 5. Use Expo Go app on your mobile device to scan the QR code
 
+## Expo Go Configuration
+
+This project is configured to run in Expo Go without requiring native builds. This provides several advantages:
+
+- No need for Android Studio or Xcode
+- Faster development cycle
+- Easier testing on physical devices
+- No Kotlin or Java compilation issues
+
+### Running in Expo Go
+
+1. Install Expo Go from your device's app store
+2. Ensure your device is on the same network as your development machine
+3. Run `npm start` to start the development server
+4. Scan the QR code with your device
+
+## Changelog
+
+### 2023-11-25
+
+- **Project Configuration**:
+
+  - Optimized project to work with Expo Go
+  - Updated package.json scripts to use Expo start commands
+  - Disabled new architecture to prevent native build requirements
+  - Added Hermes JavaScript engine for better performance
+  - Created metro.config.js for proper bundling
+  - Updated app.json for Expo Go compatibility
+
+- **Development Workflow**:
+  - Removed dependency on Android emulator
+  - Simplified development process using Expo Go on physical devices
+  - Fixed build issues related to Kotlin and Gradle
+
 ## Supported Versions
 
 | Software     | Supported Versions        |
 | ------------ | ------------------------- |
-| Expo go      | 52.0.x :white_check_mark: |
+| Expo Go      | 52.0.x :white_check_mark: |
 | Firebase     | 11.6.x :white_check_mark: |
 | React Native | 0.76.9 :white_check_mark: |
 

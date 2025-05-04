@@ -6,7 +6,8 @@
     "orientation": "portrait",
     "icon": null,
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
+    "jsEngine": "hermes",
     "splash": {
       "image": null,
       "resizeMode": "contain",
