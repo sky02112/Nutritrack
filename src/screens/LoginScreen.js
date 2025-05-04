@@ -24,7 +24,7 @@ import SafeAreaWrapper from '../components/SafeAreaWrapper';
 import { useAuth } from '../store/AuthContext';
 import { getStudentByStudentId } from '../services/studentService';
 import { serverTimestamp } from 'firebase/firestore';
-import { sendPasswordResetEmail } from 'firebase/auth';
+import { sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '../services/firebase';
 
 const { width, height } = Dimensions.get('window');
@@ -33,6 +33,7 @@ const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
@@ -44,7 +45,7 @@ const LoginScreen = () => {
   const [studentDataFetched, setStudentDataFetched] = useState(false);
   const [fetchingStudentData, setFetchingStudentData] = useState(false);
   const navigation = useNavigation();
-  const { login, signup, isAuthenticated } = useAuth();
+  const { login, signup, loginWithGoogle, isAuthenticated } = useAuth();
   
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(1)).current;
@@ -79,6 +80,38 @@ const LoginScreen = () => {
       Alert.alert('Login Error', error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      // Check if we're running in Web platform
+      if (Platform.OS === 'web') {
+        // For Web, we can use Firebase's signInWithPopup
+        const provider = new GoogleAuthProvider();
+        const result = await signInWithPopup(auth, provider);
+        
+        // This gives you a Google Access Token. You can use it to access the Google API.
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        const token = credential.idToken;
+        
+        // The signed-in user info.
+        const user = result.user;
+        console.log('Google sign-in successful:', user);
+      } else {
+        // For mobile, show a message that Google Sign-In isn't available in Expo Go
+        Alert.alert(
+          'Google Sign-In Unavailable',
+          'Google Sign-In is not available in Expo Go. Please use email/password authentication or build a standalone app.',
+          [{ text: 'OK', style: 'cancel' }]
+        );
+      }
+    } catch (error) {
+      console.error('Google sign-in error:', error);
+      Alert.alert('Google Sign-In Error', 'An error occurred during sign in');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -282,6 +315,37 @@ const LoginScreen = () => {
                   <Text style={styles.loginButtonText}>Sign In</Text>
                 )}
               </TouchableOpacity>
+
+              {/* Google Sign-In Button */}
+              {Platform.OS === 'web' ? (
+                <TouchableOpacity 
+                  style={styles.googleButton} 
+                  onPress={handleGoogleSignIn}
+                  disabled={googleLoading}
+                >
+                  {googleLoading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <View style={styles.googleButtonContent}>
+                      <FontAwesome5 name="google" size={16} color="#FFFFFF" style={styles.googleIcon} />
+                      <Text style={styles.googleButtonText}>Sign in with Google</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity 
+                  style={[styles.googleButton, {backgroundColor: '#cccccc'}]} 
+                  onPress={() => Alert.alert(
+                    'Google Sign-In Unavailable',
+                    'Google Sign-In is not available in Expo Go. Please use email/password authentication.'
+                  )}
+                >
+                  <View style={styles.googleButtonContent}>
+                    <FontAwesome5 name="google" size={16} color="#FFFFFF" style={styles.googleIcon} />
+                    <Text style={styles.googleButtonText}>Sign in with Google</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
               
               <TouchableOpacity 
                 style={styles.forgotPasswordLink}
@@ -614,7 +678,7 @@ const styles = StyleSheet.create({
     height: 55,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 15,
     elevation: 3,
     shadowColor: '#1565C0',
     shadowOffset: { width: 0, height: 2 },
@@ -622,6 +686,32 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
   },
   loginButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  googleButton: {
+    backgroundColor: '#DB4437',
+    borderRadius: 10,
+    height: 55,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: '#DB4437',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3.84,
+  },
+  googleButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleIcon: {
+    marginRight: 10,
+  },
+  googleButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',

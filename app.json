@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": null,
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
     "jsEngine": "hermes",
     "splash": {
       "image": null,
@@ -27,10 +26,22 @@
         "backgroundColor": "#1565C0"
       },
       "package": "com.nutritrack.app",
-      "icon": null
+      "icon": null,
+      "googleServicesFile": "./android/app/google-services.json"
     },
     "web": {
-      "favicon": null
-    }
+      "favicon": null,
+      "config": {
+        "firebase": {
+          "apiKey": "AIzaSyDkLjbzvLlLpIwCKulGFZ4F35_0k-yLzck",
+          "authDomain": "nutritrack-a15df.firebaseapp.com",
+          "projectId": "nutritrack-a15df",
+          "storageBucket": "nutritrack-a15df.appspot.com",
+          "messagingSenderId": "826604945403",
+          "appId": "1:826604945403:android:b165d102c12aaedaab955e"
+        }
+      }
+    },
+    "scheme": "nutritrack"
   }
 }

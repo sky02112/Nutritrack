@@ -56,6 +56,45 @@ This project is configured to run in Expo Go without requiring native builds. Th
 3. Run `npm start` to start the development server
 4. Scan the QR code with your device
 
+## Google Sign-In Setup
+
+To enable Google Sign-In in your NutriTrack app, follow these steps:
+
+1. Go to the [Firebase Console](https://console.firebase.google.com/)
+2. Select your project: "nutritrack-a15df"
+3. In the left sidebar, navigate to **Authentication**
+4. Click on the "Sign-in method" tab
+5. Enable "Google" as a sign-in provider
+6. Add your app's SHA-1 certificate fingerprint:
+   - For development, you can get this by running:
+     ```
+     cd android && ./gradlew signingReport
+     ```
+   - Look for the SHA-1 fingerprint in the debug keystore
+7. Save your changes
+
+8. Get your Web Client ID:
+   - Go to Project Settings (gear icon in the top left)
+   - Go to the "General" tab
+   - Scroll down to "Your apps" section
+   - Find your Web app (or create one if you haven't)
+   - Copy the Web Client ID (should look like: `826604945403-63aqe1dh2k73fmtt9tkd2gj8v8jmmjrl.apps.googleusercontent.com`)
+   - Replace the Web Client ID in `src/screens/LoginScreen.js`
+
+For Android, you'll need to create a `google-services.json` file:
+
+1. In Firebase Console -> Project Settings -> Your Apps -> Android
+2. Download the `google-services.json` file
+3. Place it in the `android/app/` directory
+
+For iOS, you'll need to configure the Google Service Info plist:
+
+1. In Firebase Console -> Project Settings -> Your Apps -> iOS
+2. Download the `GoogleService-Info.plist` file
+3. Add it to your iOS project in Xcode
+
+For more information, see [React Native Google Signin Documentation](https://github.com/react-native-google-signin/google-signin).
+
 ## Changelog
 
 ### 2023-11-25

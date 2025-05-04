@@ -1,7 +1,8 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -10,83 +11,45 @@ const firebaseConfig = {
   projectId: "nutritrack-a15df",
   storageBucket: "nutritrack-a15df.appspot.com",
   messagingSenderId: "826604945403",
-  appId: "1:826604945403:android:b165d102c12aaedaab955e",
-  functionsRegion: "us-central1"
+  appId: "1:826604945403:android:b165d102c12aaedaab955e"
 };
 
-// Initialize Firebase with error handling
-let app;
-let auth;
-let db;
+// Initialize Firebase
+console.log("Initializing Firebase...");
+const app = initializeApp(firebaseConfig);
 
-try {
-  app = initializeApp(firebaseConfig);
-  
-  // Initialize Auth with AsyncStorage persistence
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage)
-  });
-  
-  db = getFirestore(app);
-  
-  // Try to enable persistence but handle errors gracefully
-  if (__DEV__) {
-    console.log('Firebase initialized in development mode');
-  } else {
-    // In production, try to enable persistence for offline support
-    try {
-      enableIndexedDbPersistence(db)
-        .catch((err) => {
-          if (err.code === 'failed-precondition') {
-            console.log('Persistence failed - multiple tabs open');
-          } else if (err.code === 'unimplemented') {
-            console.log('Persistence not available in this browser');
-          }
-        });
-    } catch (error) {
-      console.log('Error enabling persistence:', error);
-    }
+// Initialize Auth with platform detection
+let auth;
+if (Platform.OS === 'web') {
+  auth = getAuth(app);
+  console.log("Using web auth");
+} else {
+  // For React Native, use AsyncStorage persistence
+  try {
+    auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage)
+    });
+    console.log("Using React Native auth with AsyncStorage persistence");
+  } catch (error) {
+    console.error("Error initializing auth with persistence:", error);
+    // Fallback to standard auth
+    auth = getAuth(app);
+    console.log("Fallback: Using standard auth without persistence");
   }
-} catch (initError) {
-  console.error('Error initializing Firebase:', initError);
-  // Create fallback dummy implementations to prevent app crashes
-  if (!app) app = { name: 'FIREBASE_INIT_FAILED' };
-  if (!auth) auth = { 
-    currentUser: null,
-    onAuthStateChanged: (callback) => { callback(null); return () => {}; },
-    signInWithEmailAndPassword: () => Promise.reject(new Error('Firebase auth not available')),
-    createUserWithEmailAndPassword: () => Promise.reject(new Error('Firebase auth not available')),
-    signOut: () => Promise.resolve()
-  };
-  if (!db) db = {
-    collection: () => ({
-      doc: () => ({
-        get: () => Promise.reject(new Error('Firebase Firestore not available')),
-        set: () => Promise.reject(new Error('Firebase Firestore not available'))
-      }),
-      add: () => Promise.reject(new Error('Firebase Firestore not available')),
-      where: () => ({
-        get: () => Promise.reject(new Error('Firebase Firestore not available'))
-      })
-    })
-  };
 }
+
+// Initialize Firestore
+const db = getFirestore(app);
+console.log("Firebase services initialized");
 
 export { app, auth, db };
 
-// Add a helper function to check if Firebase is properly initialized
+// Helper functions
 export const isFirebaseAvailable = () => {
-  return app && app.name !== 'FIREBASE_INIT_FAILED';
+  return app != null;
 };
 
-// Add a helper to handle permission errors gracefully
 export const handleFirebaseError = (error) => {
-  if (error?.code === 'permission-denied') {
-    console.log('Permission denied error:', error.message);
-    if (__DEV__) {
-      console.log('DEV MODE: Permission errors can be ignored in development');
-      return { devModeBypass: true };
-    }
-  }
+  console.error("Firebase error:", error);
   return { error };
 }; 

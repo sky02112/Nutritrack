@@ -3,10 +3,13 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut, 
-  onAuthStateChanged 
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithCredential 
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
+import { Platform } from 'react-native';
 
 const AuthContext = createContext();
 
@@ -18,32 +21,52 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
+  // Use a simpler auth state listener with better error handling
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      setIsAuthenticated(!!user);
-      
-      if (user) {
-        // Fetch additional user details from Firestore
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            setUserDetails(userDoc.data());
-          } else {
+    console.log("Setting up auth state listener");
+    let unsubscribe = () => {};
+    
+    try {
+      unsubscribe = onAuthStateChanged(auth, async (user) => {
+        console.log("Auth state changed", user ? "User signed in" : "No user");
+        setCurrentUser(user);
+        setIsAuthenticated(!!user);
+        
+        if (user) {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (userDoc.exists()) {
+              setUserDetails(userDoc.data());
+            } else {
+              console.log("User document does not exist in Firestore");
+              setUserDetails(null);
+            }
+          } catch (error) {
+            console.error('Error fetching user details:', error);
             setUserDetails(null);
           }
-        } catch (error) {
-          console.error('Error fetching user details:', error);
+        } else {
           setUserDetails(null);
         }
-      } else {
-        setUserDetails(null);
-      }
-      
+        
+        setLoading(false);
+      }, (error) => {
+        console.error("Auth state changed error", error);
+        setLoading(false);
+      });
+    } catch (error) {
+      console.error('Error setting up auth state listener:', error);
       setLoading(false);
-    });
+    }
     
-    return unsubscribe;
+    // Return cleanup function
+    return () => {
+      try {
+        unsubscribe();
+      } catch (error) {
+        console.error("Error unsubscribing from auth state", error);
+      }
+    };
   }, []);
   
   // Function to check if the user has a specific role
@@ -60,10 +83,46 @@ export const AuthProvider = ({ children }) => {
   // Sign in with email and password
   const login = async (email, password) => {
     try {
+      console.log("Attempting login with email:", email);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log("Login successful");
       setIsAuthenticated(true);
       return { user: userCredential.user };
     } catch (error) {
+      console.error('Login error:', error);
+      setIsAuthenticated(false);
+      return { error };
+    }
+  };
+
+  // Sign in with Google
+  const loginWithGoogle = async (idToken) => {
+    try {
+      // Create a Google credential with the token
+      const googleCredential = GoogleAuthProvider.credential(idToken);
+      
+      // Sign in with credential
+      const userCredential = await signInWithCredential(auth, googleCredential);
+      
+      // Check if this is a new user
+      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+      
+      if (!userDoc.exists()) {
+        // Create user profile in Firestore
+        await setDoc(doc(db, 'users', userCredential.user.uid), {
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          displayName: userCredential.user.displayName || '',
+          photoURL: userCredential.user.photoURL || null,
+          role: 'student', // Default role
+          createdAt: serverTimestamp()
+        });
+      }
+      
+      setIsAuthenticated(true);
+      return { user: userCredential.user };
+    } catch (error) {
+      console.error('Google sign-in error:', error);
       setIsAuthenticated(false);
       return { error };
     }
@@ -99,6 +158,7 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       return { user: userCredential.user };
     } catch (error) {
+      console.error('Signup error:', error);
       setIsAuthenticated(false);
       return { error };
     }
@@ -107,17 +167,10 @@ export const AuthProvider = ({ children }) => {
   // Sign out
   const logout = async () => {
     try {
-      // First sign out from Firebase
       await signOut(auth);
-      
-      // Then clear all state
       setCurrentUser(null);
       setUserDetails(null);
       setIsAuthenticated(false);
-      
-      // Add a small delay to ensure state is cleared before returning
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
       return { success: true };
     } catch (error) {
       console.error('Logout error:', error);
@@ -129,6 +182,7 @@ export const AuthProvider = ({ children }) => {
     currentUser,
     userDetails,
     login,
+    loginWithGoogle,
     signup,
     logout,
     isAdmin: userDetails?.role === 'admin',
