@@ -52,12 +52,6 @@ NutriTrack is a mobile application designed for St. Michael Academy of Valenzuel
 - 📑 **Automated Reports** - Generate individual student and class reports
 - 🔍 **Data Filtering** - Filter students by health status, class, or section
 
-### User Experience
-
-- 📱 **Modern Interface** - Clean, intuitive UI for easy navigation
-- 🔄 **Offline Support** - Work without internet connection with data syncing
-- 🌙 **Cross-Platform** - Works on both Android and iOS devices
-
 ## 📸 Screenshots
 
 <div align="center">
