@@ -49,6 +49,29 @@ const getBMIPercentile = (bmi, records) => {
   return ((belowCurrent / allBMIs.length) * 100).toFixed(2);
 };
 
+// Get status color based on BMI status
+const getStatusColor = (status) => {
+  if (!status) return '#757575';
+  
+  switch (status) {
+    case 'Normal':
+      return '#4CAF50';
+    case 'Severely Underweight':
+    case 'Underweight':
+      return '#FFC107';
+    case 'At Risk of Overweight':
+      return '#FF9800';
+    case 'Overweight':
+    case 'Obese':
+    case 'Obese Class I':
+    case 'Obese Class II':
+    case 'Obese Class III':
+      return '#F44336';
+    default:
+      return '#757575';
+  }
+};
+
 // A simple form input component
 const FormInput = ({ label, value, onChangeText, placeholder, keyboardType, maxLength, autoCapitalize, icon }) => {
   return (
@@ -83,6 +106,8 @@ const StudentTrackingScreen = ({ route, navigation }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [bmiStats, setBmiStats] = useState({ good: 0, average: 0, needsImprovement: 0 });
   const [bmiPreview, setBmiPreview] = useState({ bmi: null, status: null });
+  const [showHealthRecords, setShowHealthRecords] = useState(false);
+  const [healthRecordsModalVisible, setHealthRecordsModalVisible] = useState(false);
   const [healthRecord, setHealthRecord] = useState({
     height: '',
     weight: '',
@@ -787,39 +812,75 @@ const StudentTrackingScreen = ({ route, navigation }) => {
       const weight = parseFloat(item.weight);
       
       let bmi = '';
+      let status = '';
       if (!isNaN(height) && !isNaN(weight) && height > 0) {
         bmi = calculateBMI(weight, height).toFixed(1);
+        
+        // Calculate status based on student's age and gender
+        if (selectedStudent) {
+          const age = selectedStudent.age || 9;
+          const gender = selectedStudent.gender || 'unknown';
+          status = getBMIStatus(parseFloat(bmi), age, gender);
+        }
       } else {
         bmi = 'N/A';
+        status = 'N/A';
       }
       
       return (
-        <View style={styles.recordItem}>
-          <View style={styles.recordDate}>
-            <Text style={styles.recordDateText}>
+        <View style={styles.modernRecordItem}>
+          <View style={styles.modernRecordHeader}>
+            <Text style={styles.modernRecordDate}>
               {date.toLocaleDateString()}
             </Text>
             {(isAdmin || isTeacher) && (
               <TouchableOpacity
-                style={styles.recordDeleteButton}
+                style={styles.modernRecordDeleteButton}
                 onPress={() => handleDeleteHealthRecord(item.id)}
               >
-                <Text style={styles.recordDeleteButtonText}>✖</Text>
+                <Text style={styles.modernRecordDeleteButtonText}>✖</Text>
               </TouchableOpacity>
             )}
           </View>
-          <View style={styles.recordDetails}>
-            <Text style={styles.recordMetric}>
-              Height: <Text style={styles.recordValue}>{isNaN(height) ? 'N/A' : height.toFixed(1)} cm</Text>
-            </Text>
-            <Text style={styles.recordMetric}>
-              Weight: <Text style={styles.recordValue}>{isNaN(weight) ? 'N/A' : weight.toFixed(1)} kg</Text>
-            </Text>
-            <Text style={styles.recordMetric}>
-              BMI: <Text style={styles.recordValue}>{bmi}</Text>
-            </Text>
+          
+          <View style={styles.modernRecordBody}>
+            <View style={styles.modernRecordRow}>
+              <View style={styles.modernRecordMetricContainer}>
+                <Text style={styles.modernRecordMetricLabel}>Height</Text>
+                <Text style={styles.modernRecordMetricValue}>
+                  {isNaN(height) ? 'N/A' : height.toFixed(1)} cm
+                </Text>
+              </View>
+              
+              <View style={styles.modernRecordMetricContainer}>
+                <Text style={styles.modernRecordMetricLabel}>Weight</Text>
+                <Text style={styles.modernRecordMetricValue}>
+                  {isNaN(weight) ? 'N/A' : weight.toFixed(1)} kg
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.modernRecordRow}>
+              <View style={styles.modernRecordMetricContainer}>
+                <Text style={styles.modernRecordMetricLabel}>BMI</Text>
+                <Text style={styles.modernRecordMetricValue}>{bmi}</Text>
+              </View>
+              
+              <View style={styles.modernRecordMetricContainer}>
+                <Text style={styles.modernRecordMetricLabel}>Status</Text>
+                <View style={[styles.modernStatusBadge, { backgroundColor: getStatusColorLight(status) }]}>
+                  <Text style={[styles.modernStatusText, { color: getStatusColor(status) }]}>
+                    {status}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            
             {item.notes && (
-              <Text style={styles.recordNotes}>{item.notes}</Text>
+              <View style={styles.modernRecordNotesContainer}>
+                <Text style={styles.modernRecordNotesLabel}>Notes</Text>
+                <Text style={styles.modernRecordNotesText}>{item.notes}</Text>
+              </View>
             )}
           </View>
         </View>
@@ -827,9 +888,9 @@ const StudentTrackingScreen = ({ route, navigation }) => {
     } catch (error) {
       console.error('Error rendering health record:', error);
       return (
-        <View style={styles.recordItem}>
-          <View style={styles.recordDate}>
-            <Text style={styles.recordDateText}>Error displaying record</Text>
+        <View style={styles.modernRecordItem}>
+          <View style={styles.modernRecordHeader}>
+            <Text style={styles.modernRecordDate}>Error displaying record</Text>
           </View>
         </View>
       );
@@ -883,26 +944,6 @@ const StudentTrackingScreen = ({ route, navigation }) => {
       }
     }
     
-    const getStatusColor = (status) => {
-      switch (status) {
-        case 'Normal':
-          return '#4CAF50';
-        case 'Severely Underweight':
-        case 'Underweight':
-          return '#FFC107';
-        case 'At Risk of Overweight':
-          return '#FF9800';
-        case 'Overweight':
-        case 'Obese':
-        case 'Obese Class I':
-        case 'Obese Class II':
-        case 'Obese Class III':
-          return '#F44336';
-        default:
-          return '#757575';
-      }
-    };
-
     const percentile = bmi ? getBMIPercentile(bmi, healthRecords) : '0.00';
     
     return (
@@ -970,6 +1011,113 @@ const StudentTrackingScreen = ({ route, navigation }) => {
       default:
         return '#333';
     }
+  };
+  
+  // Function to get light background color for status
+  const getStatusColorLight = (status) => {
+    if (status.includes('Normal')) {
+      return '#E8F5E9'; // Light green
+    } else if (status.includes('Underweight')) {
+      return '#FFF8E1'; // Light yellow
+    } else if (status.includes('Overweight') || status.includes('Obese')) {
+      return '#FBE9E7'; // Light red/orange
+    } else {
+      return '#F5F5F5'; // Light gray for unknown
+    }
+  };
+
+  // Function to render health recommendations
+  const renderHealthRecommendations = () => {
+    if (!selectedStudent || !healthRecords.length) return null;
+    
+    const latestRecord = healthRecords[0];
+    if (!latestRecord) return null;
+    
+    const height = parseFloat(latestRecord.height);
+    const weight = parseFloat(latestRecord.weight);
+    
+    let bmi = null;
+    let status = 'Unknown';
+    
+    if (!isNaN(height) && !isNaN(weight) && height > 0 && weight > 0) {
+      bmi = calculateBMI(weight, height);
+      
+      try {
+        const age = selectedStudent.age || 9;
+        status = getBMIStatus(bmi, age, selectedStudent.gender || 'unknown');
+      } catch (error) {
+        console.warn('Error calculating BMI status:', error);
+        status = 'Calculation error';
+      }
+    }
+    
+    let recommendations = [];
+    let headerColor = '#1565C0';
+    let headerIcon = '❤️';
+    let headerText = 'Healthy Weight Maintenance';
+    
+    // Customize recommendations based on BMI status
+    if (status.includes('Normal')) {
+      headerColor = '#4CAF50';
+      headerIcon = '❤️';
+      headerText = 'Healthy Weight Maintenance';
+      recommendations = [
+        'Maintain balanced diet with variety of food groups',
+        'Continue regular physical activity (30+ minutes most days)',
+        'Monitor portion sizes to prevent gradual weight gain',
+        'Stay hydrated with water instead of sugary drinks',
+        'Get regular health check-ups'
+      ];
+    } else if (status.includes('Underweight')) {
+      headerColor = '#FFC107';
+      headerIcon = '⚠️';
+      headerText = 'Healthy Weight Gain Plan';
+      recommendations = [
+        'Increase calorie intake with nutrient-dense foods',
+        'Include protein-rich foods in every meal',
+        'Add healthy fats like nuts, avocados and olive oil',
+        'Eat smaller meals more frequently throughout the day',
+        'Incorporate strength training exercises',
+        'Consult with a healthcare provider for personalized advice'
+      ];
+    } else if (status.includes('Overweight') || status.includes('Obese')) {
+      headerColor = '#FF5722';
+      headerIcon = '⚠️';
+      headerText = 'Healthy Weight Management Plan';
+      recommendations = [
+        'Focus on whole foods (fruits, vegetables, lean proteins)',
+        'Reduce processed foods and sugary drinks',
+        'Practice portion control using smaller plates',
+        'Increase physical activity to 60 minutes daily',
+        'Limit screen time and sedentary activities',
+        'Ensure adequate sleep (8-10 hours)',
+        'Consult with a healthcare provider for personalized advice'
+      ];
+    }
+    
+    return (
+      <View style={styles.healthRecommendationsContainer}>
+        <Text style={styles.currentStatsTitle}>Health Recommendations</Text>
+        
+        <View style={[styles.recommendationsHeaderCard, { backgroundColor: headerColor }]}>
+          <View style={styles.recommendationsHeaderContent}>
+            <Text style={styles.recommendationsIcon}>{headerIcon}</Text>
+            <Text style={styles.recommendationsTitle}>{headerText}</Text>
+          </View>
+        </View>
+        
+        <View style={styles.recommendationsList}>
+          {recommendations.map((recommendation, index) => (
+            <View key={index} style={styles.recommendationItem}>
+              <View style={styles.recommendationCheckContainer}>
+                <Text style={styles.recommendationCheck}>✓</Text>
+              </View>
+              <Text style={styles.recommendationText}>{recommendation}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
   };
 
   const handleHealthRecordChange = (name, value) => {
@@ -1084,6 +1232,15 @@ const StudentTrackingScreen = ({ route, navigation }) => {
     setIsAddStudentModalVisible(true);
   };
   
+  // Add a ref for the scrollView
+  const scrollViewRef = React.useRef();
+  
+  // Function to toggle health records view
+  const navigateToHealthRecords = () => {
+    setShowHealthRecords(true);
+    setHealthRecordsModalVisible(true);
+  };
+  
   if (loading && students.length === 0) {
     return (
       <View style={styles.loadingContainer}>
@@ -1108,7 +1265,7 @@ const StudentTrackingScreen = ({ route, navigation }) => {
       )}
       
       {selectedStudent ? (
-        <ScrollView style={styles.scrollContainer}>
+        <ScrollView style={styles.scrollContainer} ref={scrollViewRef}>
           <View style={styles.profileContainer}>
             <View style={styles.profileHeader}>
               <View style={styles.avatarContainer}>
@@ -1150,6 +1307,10 @@ const StudentTrackingScreen = ({ route, navigation }) => {
             </View>
           </View>
           
+          {renderCurrentStats()}
+          
+          {renderHealthRecommendations()}
+          
           <View style={styles.actionsCard}>
             {(isAdmin || isTeacher) && (
               <>
@@ -1166,24 +1327,14 @@ const StudentTrackingScreen = ({ route, navigation }) => {
                 >
                   <Text style={styles.actionButtonText}>Delete Student</Text>
                 </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.historyActionButton]}
+                  onPress={navigateToHealthRecords}
+                >
+                  <Text style={styles.actionButtonText}>Health Record History</Text>
+                </TouchableOpacity>
               </>
-            )}
-          </View>
-          
-          {renderCurrentStats()}
-          
-          <View style={styles.healthRecordsContainer}>
-            <Text style={styles.healthRecordsTitle}>Health Records History</Text>
-            {healthRecords.length > 0 ? (
-              healthRecords.map((record) => (
-                <View key={record.id}>
-                  {renderHealthRecordItem({ item: record })}
-                </View>
-              ))
-            ) : (
-              <View style={styles.emptyRecordsContainer}>
-                <Text style={styles.emptyRecordsText}>No health records found</Text>
-              </View>
             )}
           </View>
           
@@ -1566,6 +1717,49 @@ const StudentTrackingScreen = ({ route, navigation }) => {
           </View>
         </View>
       </Modal>
+      
+      {/* Health Records History Modal */}
+      <Modal
+        visible={healthRecordsModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setHealthRecordsModalVisible(false)}
+      >
+        <View style={styles.modalBackground}>
+          <View style={styles.modernModalContainer}>
+            <View style={styles.modernModalHeader}>
+              <Text style={styles.modernModalTitle}>Health Records History</Text>
+            </View>
+            
+            <ScrollView style={styles.modalScrollView}>
+              {healthRecords.length > 0 ? (
+                <>
+                  <View style={styles.modalRecordsContainer}>
+                    <Text style={styles.modernSectionTitle}>Health Records</Text>
+                    
+                    {healthRecords.map((record) => (
+                      <View key={record.id}>
+                        {renderHealthRecordItem({ item: record })}
+                      </View>
+                    ))}
+                  </View>
+                </>
+              ) : (
+                <View style={styles.emptyRecordsContainer}>
+                  <Text style={styles.emptyRecordsText}>No health records found</Text>
+                </View>
+              )}
+            </ScrollView>
+            
+            <TouchableOpacity 
+              style={styles.modernCloseButton}
+              onPress={() => setHealthRecordsModalVisible(false)}
+            >
+              <Text style={styles.modernCloseButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaWrapper>
   );
 };
@@ -1782,8 +1976,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     width: '100%',
   },
+  historyActionButton: {
+    backgroundColor: '#2196F3',
+  },
   deleteActionButton: {
-    backgroundColor: '#1565C0',
+    backgroundColor: '#f44336',
   },
   actionButtonText: {
     color: '#fff',
@@ -1823,6 +2020,13 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '500',
   },
+  recordStatus: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
   recordNotes: {
     marginTop: 10,
     fontSize: 14,
@@ -1857,6 +2061,9 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  modalScrollView: {
+    maxHeight: 400,
+  },
   modalTitle: {
     fontSize: 22,
     fontWeight: 'bold',
@@ -1875,6 +2082,10 @@ const styles = StyleSheet.create({
     color: '#757575',
     marginBottom: 20,
     fontStyle: 'italic',
+  },
+  form: {
+    marginBottom: 18,
+    width: '100%',
   },
   inputContainer: {
     marginBottom: 18,
@@ -2230,6 +2441,310 @@ const styles = StyleSheet.create({
     color: '#333',
     flex: 1,
     textAlign: 'right',
+  },
+  closeModalButton: {
+    backgroundColor: '#1565C0',
+    padding: 14,
+    borderRadius: 25,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 10,
+    alignSelf: 'center',
+    width: '80%',
+  },
+  closeModalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  recommendationsContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    margin: 15,
+    padding: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  recommendationsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    paddingVertical: 12,
+  },
+  recommendationsIcon: {
+    fontSize: 24,
+    color: '#fff',
+    marginRight: 10,
+  },
+  recommendationsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  recommendationsList: {
+    padding: 15,
+    paddingTop: 5,
+  },
+  recommendationItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  recommendationCheck: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+    marginRight: 10,
+    marginTop: 2,
+  },
+  recommendationText: {
+    fontSize: 16,
+    color: '#555',
+    flex: 1,
+    lineHeight: 22,
+  },
+  healthTipsContainer: {
+    marginHorizontal: 15,
+    marginBottom: 15,
+  },
+  healthTipsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 15,
+    paddingHorizontal: 5,
+  },
+  healthRecommendationsContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    margin: 15,
+    padding: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  recommendationsHeaderCard: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 15,
+  },
+  recommendationsHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  recommendationsIcon: {
+    fontSize: 24,
+    color: '#fff',
+    marginRight: 10,
+  },
+  recommendationsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  recommendationsList: {
+    marginTop: 5,
+  },
+  recommendationItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  recommendationCheckContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#E3F2FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  recommendationCheck: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  recommendationText: {
+    fontSize: 15,
+    color: '#555',
+    flex: 1,
+    lineHeight: 22,
+  },
+  smallerStatus: {
+    fontSize: 12,
+  },
+  errorText: {
+    color: '#f44336',
+    fontSize: 14,
+    marginTop: 5,
+  },
+  modalRecordsContainer: {
+    marginTop: 0,
+  },
+  recordStatus: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  statusLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginRight: 5,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  // Modern health record styles
+  modernRecordItem: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+    overflow: 'hidden',
+  },
+  modernRecordHeader: {
+    backgroundColor: '#1976D2',
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modernRecordDate: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  modernRecordDeleteButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modernRecordDeleteButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  modernRecordBody: {
+    padding: 15,
+  },
+  modernRecordRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  modernRecordMetricContainer: {
+    flex: 1,
+    padding: 5,
+  },
+  modernRecordMetricLabel: {
+    fontSize: 12,
+    color: '#757575',
+    marginBottom: 4,
+  },
+  modernRecordMetricValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  modernStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginTop: 2,
+  },
+  modernStatusText: {
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  modernRecordNotesContainer: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#EEEEEE',
+  },
+  modernRecordNotesLabel: {
+    fontSize: 12,
+    color: '#757575',
+    marginBottom: 4,
+  },
+  modernRecordNotesText: {
+    fontSize: 14,
+    color: '#555',
+    fontStyle: 'italic',
+  },
+  modernModalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    width: '90%',
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+    overflow: 'hidden',
+  },
+  modernModalHeader: {
+    backgroundColor: '#1565C0',
+    padding: 20,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  modernModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  modalScrollView: {
+    padding: 15,
+  },
+  modernSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 15,
+  },
+  modernCloseButton: {
+    backgroundColor: '#1565C0',
+    padding: 14,
+    borderRadius: 25,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 10,
+    marginHorizontal: 15,
+    alignSelf: 'center',
+    width: '80%',
+  },
+  modernCloseButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
 
