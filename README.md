@@ -1,12 +1,9 @@
-
-
 <div align="center">
 
 # NutriTrack 📊 🥗 📱
   
 ![NutriTrack Logo](https://img.shields.io/badge/NutriTrack-Student%20Health%20Monitoring-blue?style=for-the-badge)
 
-**A comprehensive mobile application for monitoring the health and development of grade school students**
 
 [![React Native](https://img.shields.io/badge/React%20Native-0.76.9-61dafb?style=flat-square&logo=react)](https://reactnative.dev/)
 [![Expo](https://img.shields.io/badge/Expo-52.0.x-000000?style=flat-square&logo=expo)](https://expo.dev/)
@@ -15,7 +12,15 @@
 
 </div>
 
-## 📖 Table of Contents
+## ⚠️Caution
+
+**This is an experimental project created for learning and exploration purposes only. It is not intended for production use or deployment.**
+
+## 🤖 AI-Generated Content Notice
+
+**This project and its documentation are generated using AI tools for educational and experimental purposes. The content, structure, and implementation details are created through AI assistance and should be treated as a learning resource rather than a production-ready application.**
+
+##  Table of Contents
 
 - [Overview](#-overview)
 - [Features](#-features)
@@ -30,7 +35,7 @@
 
 ## 🔍 Overview
 
-NutriTrack is a mobile application designed for St. Michael Academy of Valenzuela to monitor the wellness and development of grade school students. The app enables teachers, administrators, and health professionals to track student health metrics, visualize growth trends, and generate comprehensive reports to improve student wellness.
+NutriTrack is an experimental mobile application project designed to explore concepts in student health monitoring. This project serves as a learning exercise to understand mobile app development, health tracking systems, and data visualization. While it uses St. Michael Academy of Valenzuela as a conceptual example, it is not an official product and is meant for educational purposes only.
 
 ## ✨ Features
 
@@ -191,6 +196,5 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 ---
 
 <div align="center">
-  <p>Developed for St. Michael Academy of Valenzuela</p>
-  <p>© 2025 NutriTrack Team</p>
+  <p>Experimental Project - For Learning Purposes Only</p>
 </div>
